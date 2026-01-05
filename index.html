@@ -1,0 +1,2000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Living Lab Notebook</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;400;500&family=Geist:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            /* Palette */
+            --bg-paper: #F5F5F4;
+            --text-primary: #1C1917;
+            --text-secondary: #57534E;
+            --accent: #EA580C; /* Industrial Orange */
+
+            /* Typography */
+            --font-sans: "Geist", sans-serif;
+            --font-serif: "Fraunces", serif;
+            --font-mono: "JetBrains Mono", monospace;
+
+            --viz-label-shift: 9px;
+            --viz-stage-max: 500px;
+            --viz-stage-max-metrics: 1000px;
+            --viz-metrics-width: 465px;
+            --viz-frame-radius: 14px;
+            --viz-frame-border: 1px solid #111;
+            --viz-frame-shadow: 0 12px 28px -24px rgba(0,0,0,0.52);
+            --viz-frame-bg: #0F0F0F;
+            --summary-plot-height: 420px;
+            --viz-metrics-fit: contain;
+            --section-gap: 1rem;
+            
+            /* Code Theme */
+            --code-bg: #1A1A1A;
+            --code-header: #222;
+            --code-text: #E5E5E5;
+            
+            --grid-main: 940px;
+            --grid-margin: 280px;
+            --grid-gap: 50px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            background-color: var(--bg-paper);
+            color: var(--text-primary);
+            font-family: "GT America";
+            line-height: 1.7;
+            font-size: 19.5px;
+            -webkit-font-smoothing: antialiased;
+            position: relative;
+        }
+
+        /* --- THE HUD CURSOR (The Unique Flare) --- */
+        .reading-marker {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 4px;
+            height: 0; /* Animated via JS */
+            background-color: var(--accent);
+            transition: top 0.3s ease, height 0.3s ease, opacity 0.3s;
+            opacity: 0;
+            z-index: 50;
+            border-radius: 0 4px 4px 0;
+            box-shadow: 2px 0 10px rgba(234, 88, 12, 0.4);
+        }
+
+        /* --- LAYOUT --- */
+        .layout-container {
+            display: grid;
+            grid-template-columns: 1fr minmax(0, var(--grid-main)) 1fr;
+            padding: 6rem 1.5rem;
+            align-items: start;
+            position: relative;
+        }
+
+        header, h1, h2, h3, h4, h5, h6, .code-wrapper, .tldr-box {
+            grid-column: 2;
+        }
+
+        body.layout-sidenotes .layout-container {
+            grid-template-columns: 1fr minmax(auto, var(--grid-main)) var(--grid-gap) minmax(auto, var(--grid-margin)) 1fr;
+        }
+
+        body.layout-sidenotes .sidenote {
+            grid-column: 4;
+        }
+        
+        /* Wrapper for Text + Sidenote pair */
+        .block-wrapper {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: inherit;
+            margin-bottom: 1.1rem;
+            position: relative;
+        }
+
+        .block-wrapper p,
+        .block-wrapper ul,
+        .block-wrapper ol,
+        .block-wrapper .viz-placeholder {
+            grid-column: 2;
+            margin: 0;
+        }
+
+        .block-wrapper ul,
+        .block-wrapper ol {
+            padding-left: 1.5rem;
+        }
+
+        .block-wrapper li {
+            margin: 0.4rem 0;
+        }
+
+        a {
+            color: var(--text-primary);
+            text-decoration: none;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+        }
+
+        a:hover {
+            border-bottom-color: rgba(0, 0, 0, 0.6);
+        }
+
+        p code,
+        li code {
+            font-family: var(--font-mono);
+            font-size: 0.85em;
+            background: rgba(0, 0, 0, 0.06);
+            padding: 0.1rem 0.3rem;
+            border-radius: 4px;
+        }
+
+        mjx-container[display="true"] {
+            display: block;
+            max-width: 100%;
+            width: 100%;
+        }
+
+        /* --- SIDENOTES & ANCHORS --- */
+        .sidenote {
+            grid-column: 2;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-top: 0; /* Aligns with top of paragraph */
+            transition: all 0.2s ease;
+            opacity: 0.7;
+            transform-origin: left;
+        }
+
+        /* The little number in the text: [1] */
+        .ref-link {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--accent);
+            vertical-align: super;
+            cursor: pointer;
+            margin-left: 2px;
+            font-weight: 600;
+            border-bottom: 1px solid transparent;
+            transition: all 0.2s;
+        }
+
+        /* INTERACTION: Hovering the number highlights the note */
+        .ref-link:hover {
+            border-bottom-color: var(--accent);
+        }
+
+        /* ACTIVE STATES (Controlled by JS) */
+        .sidenote.active {
+            opacity: 1;
+            color: var(--text-primary);
+            transform: translateX(-5px);
+            border-left: 2px solid var(--accent);
+            padding-left: 1rem;
+        }
+
+        .ref-link.active {
+            background-color: var(--accent);
+            color: white;
+            padding: 0 4px;
+            border-radius: 4px;
+        }
+
+        /* Mobile */
+        @media (max-width: 1200px) {
+            body {
+                overflow-x: hidden;
+            }
+            .layout-container {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr);
+                padding: 3.5rem 1.2rem;
+            }
+
+            header, h1, h2, h3, h4, h5, h6, .code-wrapper, .tldr-box {
+                grid-column: 1 / -1;
+            }
+
+            .block-wrapper {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr);
+                grid-column: 1 / -1;
+                margin-bottom: 1.4rem;
+            }
+
+            .block-wrapper p,
+            .block-wrapper ul,
+            .block-wrapper ol,
+            .block-wrapper .media-block,
+            .block-wrapper .viz-placeholder {
+                grid-column: 1 / -1;
+            }
+
+
+            .viz-block {
+                grid-column: 1;
+                margin: 1.6rem 0 2.2rem;
+            }
+
+            .viz-stage,
+            .viz-caption,
+            .obs-video {
+                max-width: 100%;
+            }
+
+            mjx-container[display="true"] {
+                font-size: 0.82em;
+            }
+
+            .sidenote { 
+                margin: 1rem 0 0 0; 
+                padding-left: 1rem;
+                border-left: 2px solid var(--accent);
+                background: #E7E5E4;
+                padding: 1rem;
+                border-radius: 0 4px 4px 0;
+                opacity: 1;
+            }
+            .reading-marker { display: none; } /* Hide HUD on mobile */
+            .layout-toggle { display: none; }
+        }
+
+        /* --- TYPOGRAPHY --- */
+        h1 {
+            font-family: var(--font-serif);
+            font-weight: 300;
+            font-size: 3.5rem;
+            letter-spacing: -0.03em;
+            margin-bottom: 1rem;
+            color: #000;
+        }
+
+        h2 {
+            font-family: var(--font-serif);
+            font-size: 2rem;
+            margin-top: 2rem;
+            margin-bottom: 0.9rem;
+            font-weight: 400;
+            letter-spacing: -0.02em;
+        }
+
+        h3 {
+            font-family: var(--font-serif);
+            font-size: 1.6rem;
+            margin-top: 1.4rem;
+            margin-bottom: 0.7rem;
+            font-weight: 400;
+        }
+
+        .block-wrapper + h2 {
+            margin-top: var(--section-gap);
+        }
+
+        h4 {
+            font-family: var(--font-serif);
+            font-size: 1.65rem;
+            margin-top: 1.6rem;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        h5,
+        h6 {
+            font-family: var(--font-serif);
+            font-size: 1.1rem;
+            margin-top: 0.8rem;
+            margin-bottom: 0.35rem;
+            font-weight: 500;
+        }
+
+        .meta {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        /* --- PREMIUM CODE BLOCK --- */
+        .code-wrapper {
+            margin: 1.6rem 0;
+            border-radius: 8px;
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.2);
+            overflow: hidden;
+            background: var(--code-bg);
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .code-header {
+            background: var(--code-header);
+            padding: 0.6rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #333;
+        }
+
+        .window-controls { display: flex; gap: 6px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .red { background: #FF5F56; }
+        .yellow { background: #FFBD2E; }
+        .green { background: #27C93F; }
+
+        .filename { font-family: var(--font-sans); font-size: 0.75rem; color: #888; }
+
+        .code-content {
+            padding: 1.5rem;
+            overflow-x: auto;
+            color: var(--code-text);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        .code-content pre {
+            margin: 0;
+        }
+
+        .code-content code {
+            font-family: inherit;
+        }
+
+        /* --- TL;DR BOX --- */
+        .tldr-box {
+            border-top: 2px solid var(--text-primary);
+            border-bottom: 1px solid var(--text-secondary);
+            padding: 1.5rem 0;
+            margin-bottom: 4rem;
+        }
+
+        .tldr-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .tldr-content {
+            font-style: italic;
+            font-size: 1.1rem;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* --- MEDIA --- */
+        .block-wrapper .media-block {
+            grid-column: 2;
+            margin: 1.4rem 0;
+        }
+
+        .media-block img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 8px;
+            border: 1px solid rgba(0,0,0,0.1);
+            box-shadow: 0 12px 30px -16px rgba(0,0,0,0.3);
+        }
+
+        .media-block figcaption {
+            margin-top: 0.6rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .viz-placeholder {
+            background: #E7E5E4;
+            border: 1px dashed var(--text-secondary);
+            color: var(--text-secondary);
+            padding: 1.5rem;
+            border-radius: 8px;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+        }
+
+        /* --- LAYOUT TOGGLE --- */
+        .layout-toggle {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            z-index: 120;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(0,0,0,0.12);
+            border-radius: 999px;
+            padding: 0.6rem 0.9rem;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .layout-label {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+        }
+
+        .layout-toggle-group {
+            display: grid;
+            grid-auto-flow: column;
+            grid-auto-columns: 1fr;
+            border-radius: 999px;
+            border: 1px solid rgba(0,0,0,0.12);
+            overflow: hidden;
+            background: #F1EDE4;
+        }
+
+        .layout-toggle-btn {
+            border: none;
+            background: transparent;
+            padding: 0.5rem 1.1rem;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .layout-toggle-btn.is-active {
+            background: #111;
+            color: #F9F6EF;
+        }
+
+        /* --- OBSERVATION GRID --- */
+        .obs-grid {
+            display: grid;
+            gap: 1.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            margin: 1.5rem 0 2.5rem;
+            grid-column: 2;
+        }
+
+        .obs-card {
+            background: #FAF7F0;
+            border: 1px solid rgba(0,0,0,0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 12px 28px -20px rgba(0,0,0,0.4);
+        }
+
+        .obs-card img {
+            width: 100%;
+            display: block;
+        }
+
+        .obs-label {
+            padding: 0.7rem 0.9rem;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--text-secondary);
+            border-top: 1px solid rgba(0,0,0,0.08);
+            background: rgba(255, 255, 255, 0.6);
+        }
+
+        /* --- VISUALIZATION PANEL --- */
+        .viz-block {
+            grid-column: 2;
+            padding: 0;
+            margin: 2rem 0 3rem;
+        }
+
+        .viz-toolbar {
+            display: grid;
+            grid-template-columns: minmax(200px, 1.4fr) repeat(3, minmax(120px, 1fr));
+            gap: 0.9rem 1.3rem;
+            align-items: center;
+            padding-bottom: 1.1rem;
+            margin-bottom: 0.45rem;
+        }
+
+        .viz-toolbar.no-metrics {
+            grid-template-columns: minmax(200px, 1.4fr) repeat(2, minmax(120px, 1fr));
+        }
+
+        .viz-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            min-width: 0;
+        }
+
+        .viz-field.is-hidden {
+            display: none;
+        }
+
+        .viz-label {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--text-secondary);
+            padding-left: var(--viz-label-shift);
+        }
+
+        .viz-select {
+            position: relative;
+        }
+
+        .viz-select select {
+            width: 100%;
+            appearance: none;
+            border: 1px solid rgba(0,0,0,0.15);
+            border-radius: 10px;
+            padding: 0.55rem 2.2rem 0.55rem 0.8rem;
+            background: #F5F2EA;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.5);
+            height: 38px;
+        }
+
+        .viz-select::after {
+            content: "";
+            position: absolute;
+            right: 0.9rem;
+            top: 50%;
+            width: 0.5rem;
+            height: 0.5rem;
+            border-right: 2px solid var(--text-secondary);
+            border-bottom: 2px solid var(--text-secondary);
+            transform: translateY(-55%) rotate(45deg);
+            pointer-events: none;
+        }
+
+        .viz-toggle-group {
+            display: grid;
+            grid-auto-flow: column;
+            grid-auto-columns: 1fr;
+            border-radius: 999px;
+            border: 1px solid rgba(0,0,0,0.12);
+            overflow: hidden;
+            background: #F1EDE4;
+            width: 100%;
+        }
+
+        .viz-toggle {
+            border: none;
+            background: transparent;
+            padding: 0.45rem 0.8rem 0.45rem 1rem;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 36px;
+        }
+
+        .viz-toggle.is-active {
+            background: #111;
+            color: #F9F6EF;
+        }
+
+        .viz-toggle.is-disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .viz-stage {
+            display: grid;
+            gap: 1.4rem;
+            grid-template-columns: 1fr;
+            align-items: start;
+            background: transparent;
+            border: none;
+            max-width: var(--viz-stage-max);
+            margin: 0 auto;
+            border-radius: 0;
+            padding: 0;
+            box-shadow: none;
+        }
+
+        .viz-stage.has-metrics {
+            max-width: var(--viz-stage-max-metrics);
+            grid-template-columns: minmax(0, 1fr) var(--viz-metrics-width);
+        }
+
+        .viz-player {
+            position: relative;
+            border-radius: var(--viz-frame-radius);
+            overflow: hidden;
+            background: var(--viz-frame-bg);
+            border: var(--viz-frame-border);
+            box-shadow: var(--viz-frame-shadow);
+        }
+
+        .viz-player video,
+        .viz-player img {
+            width: 100%;
+            display: none;
+        }
+
+        .viz-player.is-video video {
+            display: block;
+        }
+
+        .viz-player.is-gif img {
+            display: block;
+        }
+
+
+        .viz-player-controls {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.45rem 0.7rem;
+            background: #F7F1E3;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .viz-player:hover .viz-player-controls {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .viz-play {
+            width: 28px;
+            height: 28px;
+            border-radius: 7px;
+            border: none;
+            background: #F2C14E;
+            display: grid;
+            place-items: center;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .viz-play::before {
+            content: "";
+            width: 0;
+            height: 0;
+            border-left: 8px solid #1C1917;
+            border-top: 5px solid transparent;
+            border-bottom: 5px solid transparent;
+            margin-left: 2px;
+        }
+
+        .viz-play.is-playing::before {
+            width: 3px;
+            height: 10px;
+            background: #1C1917;
+            border: none;
+            margin: 0;
+            box-shadow: 5px 0 0 #1C1917;
+        }
+
+        .viz-time {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .viz-progress {
+            flex: 1;
+            appearance: none;
+            height: 3px;
+            border-radius: 999px;
+            background: linear-gradient(#F2C14E, #F2C14E) no-repeat, #E7E2D6;
+            background-size: var(--progress, 0%) 100%;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .viz-progress::-webkit-slider-thumb {
+            appearance: none;
+            width: 14px;
+            height: 10px;
+            border-radius: 4px;
+            background: #E9B949;
+            border: 1px solid rgba(0,0,0,0.08);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+        }
+
+        .viz-progress::-moz-range-thumb {
+            width: 14px;
+            height: 10px;
+            border-radius: 4px;
+            background: #E9B949;
+            border: 1px solid rgba(0,0,0,0.08);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+        }
+
+        .viz-fullscreen {
+            border: 1px solid rgba(0,0,0,0.2);
+            border-radius: 7px;
+            background: #F1EDE4;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+            font-size: 0.6rem;
+            padding: 0.3rem 0.45rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        .viz-metrics {
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 0;
+            display: block;
+            box-shadow: none;
+            overflow: visible;
+        }
+
+        .viz-metrics img {
+            width: 100%;
+            height: 100%;
+            object-fit: var(--viz-metrics-fit);
+            display: block;
+            border: var(--viz-frame-border);
+            border-radius: var(--viz-frame-radius);
+            box-shadow: var(--viz-frame-shadow);
+        }
+
+        .viz-metrics-plot {
+            width: 100%;
+            height: 100%;
+            border: var(--viz-frame-border);
+            border-radius: var(--viz-frame-radius);
+            box-shadow: var(--viz-frame-shadow);
+            outline: var(--viz-frame-border);
+            outline-offset: -1px;
+            overflow: hidden;
+            background: #FFFFFF;
+        }
+
+        .plotly-summary {
+            height: var(--summary-plot-height);
+        }
+
+        .viz-metrics.is-plot img {
+            display: none;
+        }
+
+        .viz-metrics.is-image .viz-metrics-plot {
+            display: none;
+        }
+
+        .viz-metrics.is-hidden {
+            display: none;
+        }
+
+        .viz-metrics.is-absent {
+            display: none;
+        }
+
+        .viz-caption {
+            max-width: var(--viz-stage-max);
+            margin: 0.65rem auto 0;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            text-align: left;
+        }
+
+        .viz-block.has-metrics .viz-caption {
+            max-width: var(--viz-stage-max-metrics);
+        }
+
+        .obs-video {
+            grid-column: 1 / -1;
+            max-width: 1500px;
+            margin: 2rem auto 3rem;
+            padding: 0;
+        }
+
+        .viz-empty {
+            padding: 2rem;
+            border-radius: 12px;
+            background: #EFEAE0;
+            text-align: center;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--text-secondary);
+        }
+
+        @media (max-width: 900px) {
+            .layout-container {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr);
+                padding: 3rem 1rem;
+            }
+
+            header, h1, h2, h3, h4, h5, h6, .code-wrapper, .tldr-box {
+                grid-column: 1;
+            }
+
+            .block-wrapper {
+                grid-column: 1;
+                display: block;
+                margin-bottom: 1.2rem;
+            }
+
+            .block-wrapper p,
+            .block-wrapper ul,
+            .block-wrapper ol,
+            .block-wrapper .media-block,
+            .block-wrapper .viz-placeholder {
+                grid-column: 1;
+            }
+
+            .viz-block {
+                grid-column: 1;
+                margin: 1.6rem 0 2.2rem;
+            }
+
+            .viz-stage {
+                max-width: 100%;
+            }
+
+            .viz-caption {
+                max-width: 100%;
+            }
+
+            .obs-video {
+                max-width: 100%;
+            }
+
+            .plotly-summary {
+                height: 320px;
+            }
+
+            h1 {
+                font-size: 2.6rem;
+                line-height: 1.15;
+            }
+
+            mjx-container[display="true"] {
+                font-size: 0.78em;
+            }
+
+            .viz-metrics-plot {
+                height: 320px;
+            }
+
+            .viz-metrics img {
+                height: auto;
+            }
+
+            .viz-block {
+                padding: 1.2rem;
+            }
+
+            .viz-toolbar {
+                grid-template-columns: 1fr;
+            }
+
+            .viz-toolbar.no-metrics {
+                grid-template-columns: 1fr;
+            }
+
+            .viz-toggle-group {
+                min-width: 0;
+            }
+
+            .viz-select select {
+                width: 100%;
+                max-width: 100%;
+            }
+
+            .viz-toolbar {
+                grid-template-columns: 1fr;
+            }
+
+            .viz-stage.has-metrics {
+                grid-template-columns: 1fr;
+            }
+
+            .viz-player-controls {
+                flex-wrap: wrap;
+                gap: 0.8rem;
+            }
+
+            .viz-time {
+                min-width: auto;
+            }
+        }
+    </style>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            }
+        };
+    </script>
+    <script>
+        window.BLOG_VIZ_DATA = {"visualizations": {"visualization_one": {"selector_label": "Seed", "options": [{"id": "seed_00", "label": "Seed 00", "paths": {"2d": {"mp4": "assets/visualization_one/seed_00/animation.mp4"}, "3d": {"mp4": "assets/visualization_one/seed_00/animation_3d.mp4", "gif": "assets/visualization_one/seed_00/animation_3d.gif"}, "metrics": "assets/visualization_one/seed_00/metrics.png", "metrics_data": {"seed_index": 0, "normalized_l2": [1.411609411239624, 1.4102962017059326, 1.4021273851394653, 1.381070613861084, 1.3358268737792969, 1.2485339641571045, 1.0962865352630615, 0.864321231842041, 0.5690134167671204, 0.26066648960113525, 0.02482728473842144], "cosine_similarity": [0.005757516715675592, 0.007662441115826368, 0.0188132356852293, 0.04743647947907448, 0.1085701510310173, 0.2231212854385376, 0.407486230134964, 0.6411826610565186, 0.8483777642250061, 0.9683153629302979, 0.9996650218963623], "timesteps": [1.0, 0.8999999761581421, 0.7999999523162842, 0.6999999284744263, 0.5999999046325684, 0.49999991059303284, 0.3999999165534973, 0.2999999225139618, 0.19999992847442627, 0.09999992698431015, -7.450580596923828e-08]}}}, {"id": "seed_13", "label": "Seed 13", "paths": {"2d": {"mp4": "assets/visualization_one/seed_13/animation.mp4"}, "3d": {"mp4": "assets/visualization_one/seed_13/animation_3d.mp4", "gif": "assets/visualization_one/seed_13/animation_3d.gif"}, "metrics": "assets/visualization_one/seed_13/metrics.png", "metrics_data": {"seed_index": 13, "normalized_l2": [1.3841813802719116, 1.3810621500015259, 1.3705952167510986, 1.3454948663711548, 1.2948144674301147, 1.2007083892822266, 1.0436691045761108, 0.8145262598991394, 0.5334928631782532, 0.24611619114875793, 0.02053811214864254], "cosine_similarity": [0.03070012852549553, 0.03439120203256607, 0.0482792891561985, 0.08249034732580185, 0.1502997875213623, 0.26954129338264465, 0.4484580159187317, 0.6650174260139465, 0.8573315143585205, 0.969933271408081, 0.9997317790985107], "timesteps": [1.0, 0.8999999761581421, 0.7999999523162842, 0.6999999284744263, 0.5999999046325684, 0.49999991059303284, 0.3999999165534973, 0.2999999225139618, 0.19999992847442627, 0.09999992698431015, -7.450580596923828e-08]}}}, {"id": "seed_24", "label": "Seed 24", "paths": {"2d": {"mp4": "assets/visualization_one/seed_24/animation.mp4"}, "3d": {"mp4": "assets/visualization_one/seed_24/animation_3d.mp4", "gif": "assets/visualization_one/seed_24/animation_3d.gif"}, "metrics": "assets/visualization_one/seed_24/metrics.png", "metrics_data": {"seed_index": 24, "normalized_l2": [1.4350837469100952, 1.4309152364730835, 1.4185450077056885, 1.3916842937469482, 1.3406116962432861, 1.2487739324569702, 1.0944942235946655, 0.8635422587394714, 0.5721103549003601, 0.26761481165885925, 0.03148844465613365], "cosine_similarity": [-0.033073823899030685, -0.02842109091579914, -0.013100762851536274, 0.020976047962903976, 0.08576031774282455, 0.20051796734333038, 0.38302913308143616, 0.6176917552947998, 0.8341860175132751, 0.9642482399940491, 0.9993606805801392], "timesteps": [1.0, 0.8999999761581421, 0.7999999523162842, 0.6999999284744263, 0.5999999046325684, 0.49999991059303284, 0.3999999165534973, 0.2999999225139618, 0.19999992847442627, 0.09999992698431015, -7.450580596923828e-08]}}}, {"id": "seed_37", "label": "Seed 37", "paths": {"2d": {"mp4": "assets/visualization_one/seed_37/animation.mp4"}, "3d": {"mp4": "assets/visualization_one/seed_37/animation_3d.mp4", "gif": "assets/visualization_one/seed_37/animation_3d.gif"}, "metrics": "assets/visualization_one/seed_37/metrics.png", "metrics_data": {"seed_index": 37, "normalized_l2": [1.4309626817703247, 1.4304066896438599, 1.4227765798568726, 1.4016895294189453, 1.3571088314056396, 1.2735633850097656, 1.1290608644485474, 0.9049786329269409, 0.6075924634933472, 0.2839359939098358, 0.03350311145186424], "cosine_similarity": [-0.026653598994016647, -0.025363577529788017, -0.014425130560994148, 0.014752189628779888, 0.07484955340623856, 0.18260541558265686, 0.3546276390552521, 0.5841180086135864, 0.8128891587257385, 0.9591498970985413, 0.9989475607872009], "timesteps": [1.0, 0.8999999761581421, 0.7999999523162842, 0.6999999284744263, 0.5999999046325684, 0.49999991059303284, 0.3999999165534973, 0.2999999225139618, 0.19999992847442627, 0.09999992698431015, -7.450580596923828e-08]}}}, {"id": "seed_49", "label": "Seed 49", "paths": {"2d": {"mp4": "assets/visualization_one/seed_49/animation.mp4"}, "3d": {"mp4": "assets/visualization_one/seed_49/animation_3d.mp4", "gif": "assets/visualization_one/seed_49/animation_3d.gif"}, "metrics": "assets/visualization_one/seed_49/metrics.png", "metrics_data": {"seed_index": 49, "normalized_l2": [1.3506476879119873, 1.3445647954940796, 1.3268818855285645, 1.2885510921478271, 1.2177760601043701, 1.100151538848877, 0.9250521063804626, 0.6974550485610962, 0.4445582330226898, 0.20192208886146545, 0.011306245811283588], "cosine_similarity": [0.08962393552064896, 0.09742005169391632, 0.12008142471313477, 0.16822388768196106, 0.2535977363586426, 0.3871001899242401, 0.5648209452629089, 0.7521585822105408, 0.8994780778884888, 0.9793761968612671, 0.9999305605888367], "timesteps": [1.0, 0.8999999761581421, 0.7999999523162842, 0.6999999284744263, 0.5999999046325684, 0.49999991059303284, 0.3999999165534973, 0.2999999225139618, 0.19999992847442627, 0.09999992698431015, -7.450580596923828e-08]}}}], "default": {"option": "seed_00", "view": "2d", "format": "mp4", "metrics": true}}, "visualization_two": {"selector_label": "Horizon", "options": [{"id": "horizon_00", "label": "Horizon 0", "paths": {"2d": {"mp4": "assets/visualization_two/horizon_00/animation.mp4", "gif": "assets/visualization_two/horizon_00/animation.gif"}, "3d": {"mp4": "assets/visualization_two/horizon_00/animation_3d.mp4", "gif": "assets/visualization_two/horizon_00/animation_3d.gif"}, "metrics": "assets/visualization_two/horizon_00/metrics.png", "metrics_data": {"horizon_index": 0, "mean_pairwise_distance": [5.434678077697754, 4.8827223777771, 4.3323540687561035, 3.7832653522491455, 3.2373414039611816, 2.692211389541626, 2.149263381958008, 1.610265851020813, 1.0799134969711304, 0.576843798160553, 0.26660531759262085], "timesteps": [1.0, 0.8999999761581421, 0.7999999523162842, 0.6999999284744263, 0.5999999046325684, 0.49999991059303284, 0.3999999165534973, 0.2999999225139618, 0.19999992847442627, 0.09999992698431015, -7.450580596923828e-08]}}}, {"id": "horizon_10", "label": "Horizon 10", "paths": {"2d": {"mp4": "assets/visualization_two/horizon_10/animation.mp4", "gif": "assets/visualization_two/horizon_10/animation.gif"}, "3d": {"mp4": "assets/visualization_two/horizon_10/animation_3d.mp4", "gif": "assets/visualization_two/horizon_10/animation_3d.gif"}, "metrics": "assets/visualization_two/horizon_10/metrics.png", "metrics_data": {"horizon_index": 10, "mean_pairwise_distance": [5.1753668785095215, 4.652122974395752, 4.129709243774414, 3.6085100173950195, 3.0907845497131348, 2.5771210193634033, 2.070721387863159, 1.5773351192474365, 1.1110018491744995, 0.7153610587120056, 0.5567823052406311], "timesteps": [1.0, 0.8999999761581421, 0.7999999523162842, 0.6999999284744263, 0.5999999046325684, 0.49999991059303284, 0.3999999165534973, 0.2999999225139618, 0.19999992847442627, 0.09999992698431015, -7.450580596923828e-08]}}}, {"id": "horizon_15", "label": "Horizon 15", "paths": {"2d": {"mp4": "assets/visualization_two/horizon_15/animation.mp4", "gif": "assets/visualization_two/horizon_15/animation.gif"}, "3d": {"mp4": "assets/visualization_two/horizon_15/animation_3d.mp4", "gif": "assets/visualization_two/horizon_15/animation_3d.gif"}, "metrics": "assets/visualization_two/horizon_15/metrics.png", "metrics_data": {"horizon_index": 15, "mean_pairwise_distance": [5.255551815032959, 4.725062847137451, 4.196922779083252, 3.671837568283081, 3.152132511138916, 2.6397650241851807, 2.1393790245056152, 1.65981924533844, 1.2224535942077637, 0.8765163421630859, 0.7613551020622253], "timesteps": [1.0, 0.8999999761581421, 0.7999999523162842, 0.6999999284744263, 0.5999999046325684, 0.49999991059303284, 0.3999999165534973, 0.2999999225139618, 0.19999992847442627, 0.09999992698431015, -7.450580596923828e-08]}}}, {"id": "horizon_24", "label": "Horizon 24", "paths": {"2d": {"mp4": "assets/visualization_two/horizon_24/animation.mp4", "gif": "assets/visualization_two/horizon_24/animation.gif"}, "3d": {"mp4": "assets/visualization_two/horizon_24/animation_3d.mp4", "gif": "assets/visualization_two/horizon_24/animation_3d.gif"}, "metrics": "assets/visualization_two/horizon_24/metrics.png", "metrics_data": {"horizon_index": 24, "mean_pairwise_distance": [5.360273361206055, 4.8209452629089355, 4.286131381988525, 3.7596373558044434, 3.2450990676879883, 2.746122121810913, 2.271191358566284, 1.8369994163513184, 1.4744815826416016, 1.2385470867156982, 1.2160357236862183], "timesteps": [1.0, 0.8999999761581421, 0.7999999523162842, 0.6999999284744263, 0.5999999046325684, 0.49999991059303284, 0.3999999165534973, 0.2999999225139618, 0.19999992847442627, 0.09999992698431015, -7.450580596923828e-08]}}}, {"id": "horizon_36", "label": "Horizon 36", "paths": {"2d": {"mp4": "assets/visualization_two/horizon_36/animation.mp4", "gif": "assets/visualization_two/horizon_36/animation.gif"}, "3d": {"mp4": "assets/visualization_two/horizon_36/animation_3d.mp4", "gif": "assets/visualization_two/horizon_36/animation_3d.gif"}, "metrics": "assets/visualization_two/horizon_36/metrics.png", "metrics_data": {"horizon_index": 36, "mean_pairwise_distance": [5.250768661499023, 4.7227654457092285, 4.198396682739258, 3.6805708408355713, 3.1746437549591064, 2.6892189979553223, 2.239999294281006, 1.8526554107666016, 1.56673002243042, 1.4373252391815186, 1.50839364528656], "timesteps": [1.0, 0.8999999761581421, 0.7999999523162842, 0.6999999284744263, 0.5999999046325684, 0.49999991059303284, 0.3999999165534973, 0.2999999225139618, 0.19999992847442627, 0.09999992698431015, -7.450580596923828e-08]}}}, {"id": "horizon_40", "label": "Horizon 40", "paths": {"2d": {"mp4": "assets/visualization_two/horizon_40/animation.mp4", "gif": "assets/visualization_two/horizon_40/animation.gif"}, "3d": {"mp4": "assets/visualization_two/horizon_40/animation_3d.mp4", "gif": "assets/visualization_two/horizon_40/animation_3d.gif"}, "metrics": "assets/visualization_two/horizon_40/metrics.png", "metrics_data": {"horizon_index": 40, "mean_pairwise_distance": [5.097483158111572, 4.584615707397461, 4.077885627746582, 3.5815470218658447, 3.0992119312286377, 2.6381871700286865, 2.214054822921753, 1.854089617729187, 1.5990339517593384, 1.5021710395812988, 1.601769208908081], "timesteps": [1.0, 0.8999999761581421, 0.7999999523162842, 0.6999999284744263, 0.5999999046325684, 0.49999991059303284, 0.3999999165534973, 0.2999999225139618, 0.19999992847442627, 0.09999992698431015, -7.450580596923828e-08]}}}, {"id": "horizon_45", "label": "Horizon 45", "paths": {"2d": {"mp4": "assets/visualization_two/horizon_45/animation.mp4", "gif": "assets/visualization_two/horizon_45/animation.gif"}, "3d": {"mp4": "assets/visualization_two/horizon_45/animation_3d.mp4", "gif": "assets/visualization_two/horizon_45/animation_3d.gif"}, "metrics": "assets/visualization_two/horizon_45/metrics.png", "metrics_data": {"horizon_index": 45, "mean_pairwise_distance": [5.119088649749756, 4.606072425842285, 4.099976539611816, 3.607548713684082, 3.1346983909606934, 2.6891918182373047, 2.28719425201416, 1.9526634216308594, 1.7197049856185913, 1.6279882192611694, 1.7022839784622192], "timesteps": [1.0, 0.8999999761581421, 0.7999999523162842, 0.6999999284744263, 0.5999999046325684, 0.49999991059303284, 0.3999999165534973, 0.2999999225139618, 0.19999992847442627, 0.09999992698431015, -7.450580596923828e-08]}}}, {"id": "horizon_49", "label": "Horizon 49", "paths": {"2d": {"mp4": "assets/visualization_two/horizon_49/animation.mp4", "gif": "assets/visualization_two/horizon_49/animation.gif"}, "3d": {"mp4": "assets/visualization_two/horizon_49/animation_3d.mp4", "gif": "assets/visualization_two/horizon_49/animation_3d.gif"}, "metrics": "assets/visualization_two/horizon_49/metrics.png", "metrics_data": {"horizon_index": 49, "mean_pairwise_distance": [5.591564178466797, 5.03156852722168, 4.4791412353515625, 3.9448633193969727, 3.4321513175964355, 2.9483933448791504, 2.5072109699249268, 2.1327316761016846, 1.8595342636108398, 1.7286698818206787, 1.7729774713516235], "timesteps": [1.0, 0.8999999761581421, 0.7999999523162842, 0.6999999284744263, 0.5999999046325684, 0.49999991059303284, 0.3999999165534973, 0.2999999225139618, 0.19999992847442627, 0.09999992698431015, -7.450580596923828e-08]}}}], "default": {"option": "horizon_00", "view": "2d", "format": "mp4", "metrics": true}}, "visualization_three": {"selector_label": "Subsample", "options": [{"id": "subsample_0.05_seed0", "label": "Subsample 5% (Seed 0)", "paths": {"2d": {"mp4": "assets/visualization_three/subsample_0.05_seed0/animation.mp4", "gif": "assets/visualization_three/subsample_0.05_seed0/animation.gif"}, "3d": {"mp4": "assets/visualization_three/subsample_0.05_seed0/animation_3d.mp4", "gif": "assets/visualization_three/subsample_0.05_seed0/animation_3d.gif"}}}, {"id": "subsample_0.15_seed0", "label": "Subsample 15% (Seed 0)", "paths": {"2d": {"mp4": "assets/visualization_three/subsample_0.15_seed0/animation.mp4", "gif": "assets/visualization_three/subsample_0.15_seed0/animation.gif"}, "3d": {"mp4": "assets/visualization_three/subsample_0.15_seed0/animation_3d.mp4", "gif": "assets/visualization_three/subsample_0.15_seed0/animation_3d.gif"}}}, {"id": "subsample_0.25_seed0", "label": "Subsample 25% (Seed 0)", "paths": {"2d": {"mp4": "assets/visualization_three/subsample_0.25_seed0/animation.mp4", "gif": "assets/visualization_three/subsample_0.25_seed0/animation.gif"}, "3d": {"mp4": "assets/visualization_three/subsample_0.25_seed0/animation_3d.mp4", "gif": "assets/visualization_three/subsample_0.25_seed0/animation_3d.gif"}}}, {"id": "subsample_0.50_seed0", "label": "Subsample 50% (Seed 0)", "paths": {"2d": {"mp4": "assets/visualization_three/subsample_0.50_seed0/animation.mp4", "gif": "assets/visualization_three/subsample_0.50_seed0/animation.gif"}, "3d": {"mp4": "assets/visualization_three/subsample_0.50_seed0/animation_3d.mp4", "gif": "assets/visualization_three/subsample_0.50_seed0/animation_3d.gif"}}}, {"id": "subsample_0.75_seed0", "label": "Subsample 75% (Seed 0)", "paths": {"2d": {"mp4": "assets/visualization_three/subsample_0.75_seed0/animation.mp4", "gif": "assets/visualization_three/subsample_0.75_seed0/animation.gif"}, "3d": {"mp4": "assets/visualization_three/subsample_0.75_seed0/animation_3d.mp4", "gif": "assets/visualization_three/subsample_0.75_seed0/animation_3d.gif"}}}, {"id": "subsample_1.00_seed0", "label": "Subsample 100% (Seed 0)", "paths": {"2d": {"mp4": "assets/visualization_three/subsample_1.00_seed0/animation.mp4", "gif": "assets/visualization_three/subsample_1.00_seed0/animation.gif"}, "3d": {"mp4": "assets/visualization_three/subsample_1.00_seed0/animation_3d.mp4", "gif": "assets/visualization_three/subsample_1.00_seed0/animation_3d.gif"}}}], "default": {"option": "subsample_0.05_seed0", "view": "2d", "format": "mp4", "metrics": true}}}, "images": {"visualization_two_summary": {"alt": "Final dispersion varying with horizon index", "src": "assets/visualization_two/final_dispersion_by_horizon.png", "metrics_data": {"horizon_indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49], "mean_pairwise_distance_final_step": [0.26660531759262085, 0.2926468849182129, 0.3220135569572449, 0.34847962856292725, 0.3762661814689636, 0.4020034372806549, 0.4324616491794586, 0.46211227774620056, 0.4891502857208252, 0.5214174389839172, 0.5567823052406311, 0.590408980846405, 0.632453978061676, 0.6656179428100586, 0.71866774559021, 0.7613551020622253, 0.806501567363739, 0.862443208694458, 0.9104978442192078, 0.9661276340484619, 1.0174241065979004, 1.0803731679916382, 1.1293408870697021, 1.183090090751648, 1.2160357236862183, 1.2561639547348022, 1.285209059715271, 1.315237283706665, 1.339351773262024, 1.359934687614441, 1.3811372518539429, 1.402492880821228, 1.4212006330490112, 1.4405666589736938, 1.4641469717025757, 1.4857202768325806, 1.50839364528656, 1.5287858247756958, 1.550765872001648, 1.5744929313659668, 1.601769208908081, 1.6241461038589478, 1.6480791568756104, 1.6661217212677002, 1.6828808784484863, 1.7022839784622192, 1.721714735031128, 1.7395663261413574, 1.7568084001541138, 1.7729774713516235], "source": "/Users/abhinavjha/physical_intelligence_vla/openpi/scripts/flow_matching_trajectory.npz"}}}, "observations": {"frame_47": {"label": "Frame 47", "images": [{"src": "assets/observation_frame/image_cam_high.png", "label": "High"}, {"src": "assets/observation_frame/image_cam_left_wrist.png", "label": "Left wrist"}, {"src": "assets/observation_frame/image_cam_right_wrist.png", "label": "Right wrist"}]}, "context_clip": {"video": "assets/observation_context/episode_00_frame_0047_context.mp4"}}};
+    </script>
+    <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+
+    <div class="reading-marker" id="marker"></div>
+    <article class="layout-container">
+        <header>
+    <h1>Visualizing Flow Matching in Robotics</h1>
+</header>
+        <div class="block-wrapper"><p>In this post, I walk through flow-matching basics, explain its role in VLAs like $\pi_{0.5}$, then dive into visualizations of how noise becomes coherent actions. I hope I can share some of my appreciation for flow matching with you.</p></div>
+
+<h2>Introduction to Flow Matching</h2>
+
+<div class="block-wrapper"><p>Imagine starting with pure static,  the kind that’s on the TV screen when the weather gets stormy. Now imagine guiding that chaos into a cat mid-yawn, a piano playing Mozart’s 40th symphony, or a robot making you the perfect coffee. This is exactly what flow matching allows us to do.</p></div>
+
+<div class="block-wrapper"><p>The way it works is, we model the initial noise as a probability distribution we can easily sample from, like the Gaussian distribution. Then we transform this noise by pushing and pulling it across a high-dimensional space until it lands in the target distribution, in our case, that’s cats during mid-yawns.</p></div>
+
+<div class="block-wrapper">
+    <figure class="media-block">
+        <img src="../blog_posts/images/flow_matching_intro.png" alt="Flow matching moves the noise sample $x_0$ to the target distribution $p_1(x_1)$. Each of the cats are samples from $p_1(x_1)$">
+        <figcaption>Flow matching moves the noise sample $x_0$ to the target distribution $p_1(x_1)$. Each of the cats are samples from $p_1(x_1)$</figcaption>
+    </figure>
+</div>
+
+<div class="block-wrapper"><p>Introducing some notation here, we can denote the noisy distribution by $p_0(x_0)$ and the target distribution by $p_1(x_1)$. Correlating this with our cat example, $x_0$ denotes a sample from the Gaussian distribution, and $x_1$ is a picture of our cat mid-yawn. Now we don’t actually know the target distribution, we only have samples from it. We need to learn a representation that allows us to learn the direction and magnitude to move any point in space at any timestep closer to the target distribution. This can be modelled by a vector field.</p></div>
+
+<div class="block-wrapper"><p>The issue here is that we don’t have access to the ground-truth vector field either. Instead, the solution is to work with individual trajectories. Both $x_0$ (noise) and $x_1$ (a cat image) are just vectors in high-dimensional space. Now the simplest way to get from $x_0$ to $x_1$ is by a straight line, or more precisely by travelling along $x_1 - x_0$. We can represent the position of a sample at any timestep along this direction as:</p></div>
+
+<div class="block-wrapper"><p>$$ x_t = (1 - t)x_0 + t x_1 $$</p></div>
+
+<div class="block-wrapper"><p>where $t \in [0,1]$. At $t=0$, we’re at pure noise. At $t=1$, we’re at the cat image. The velocity along this path, i.e., the direction we should be moving along with the magnitude, can be modelled as:</p></div>
+
+<div class="block-wrapper"><p>$$ u_t = \frac{dx_t}{dt} = x_1 - x_0 $$</p></div>
+
+<div class="block-wrapper"><p>We train a neural network $v_{\theta}(x_t, t)$ to predict velocities for many $(x_0, x_1)$ pairs sampled at many different timesteps. Now, it turns out that despite training only on individual trajectories, the neural network learns a vector field that transforms any point from the noisy distribution to the target distribution. It doesn’t memorize specific paths, but instead learns an average flow that transforms TV static into cute cat images.</p></div>
+
+<h2>Flow Matching in Vision-Language-Action Models (VLAs)</h2>
+
+<div class="block-wrapper"><p>Just like how noise can be transformed into cats yawning, we can also transform this noise into actions for the robot to follow. Vision-Language-Action Models are a new paradigm in an attempt to solve general robotics. At its core, it’s a model with a pretrained backbone which is trained on large-scale vision-language data and subsequently trained to generate actions for the robot to execute. Without diving deeper into the intricacies of VLA’s in general, let’s take $\pi_{0.5}$ from Physical Intelligence as an example.</p></div>
+
+<div class="block-wrapper"><p>You provide the model with an instruction for the task it needs to accomplish, for example, making coffee, then the model has a two-stage control loop. The model first predicts a textual subtask, which will help it accomplish the main goal. This is conditioned on observations that include images from all cameras, the robot’s proprioceptive state (joint angles, gripper pose, torso lift pose, base velocity), and the user’s task. Then, a lower-level controller is conditioned on the textual subtask along with the observation to produce continuous action chunks. Mathematically, the paper represents this as: $$ \pi_{\theta}(a_{t:t+H}, \hat{\ell} \mid o_t, \ell) = \pi_{\theta}(a_{t:t+H} \mid o_t, \hat{\ell}) \pi_{\theta}(\hat{\ell} \mid o_t, \ell), $$</p></div>
+
+<div class="block-wrapper"><p>where $\ell$ is the user’s original task prompt, $\hat{\ell}$ is the model’s generated subtasks, $o_t$ denotes observation at time $t$, and $a_{t:t+H}$ is the action chunk, where it predicts $H+1$ actions. $H$ here is called the action horizon. The high-level inference (coming up with subtasks) is captured by $\pi_{\theta}(\hat{\ell} \mid o_t, \ell)$, and the low-level inference is captured by $\pi_{\theta}(a_{t:t+H} \mid o_t, \hat{\ell})$.</p></div>
+
+<div class="block-wrapper"><p>$\pi_{0.5}$ cleverly uses both autoregressive generation for these action chunks as well as flow matching. Autoregressive generation of action tokens is extremely good for scalable pre-training, but they’re not as well-suited for real-time inference, since they require expensive autoregressive decoding, which is problematic for high-frequency control. This is where flow matching comes into the picture, it gives us continuous trajectories with fixed-step generation for real-time control. Unlike our cat example earlier, flow matching here is conditional denoising; it’s not just learning “how to remove noise” in the void, it’s learning how to remove noise given the current scene, the robot’s state and the task that needs to be accomplished.</p></div>
+
+<div class="block-wrapper"><p>An interesting detail here is that, instead of naively concatenating the timestep with the noisy actions and passing it through the transformer layers, $\pi_{0.5}$ takes a different approach. It projects the timestep through a separate MLP and then applies adaptive RMSNorm to inject the timestep information into each layer of the action expert. The intuition here is that, instead of hoping the network keeps track of the timestep embedding throughout the layers, injecting the timestep via adaptive normalisation ensures that conditioning is present at every layer.</p></div>
+
+<h2>Visualizing Flow Matching</h2>
+
+<div class="block-wrapper"><p>Let’s see what flow matching actually looks like in practice. As mentioned earlier, flow matching in $\pi_{0.5}$ is conditioned on both the observation and the initial task prompt. For the remainder of this section, I will use episode 0, frame 47, from the Mobile ALOHA dataset, where the robot receives the instruction: “Pick up the pan, rinse it in the sink and then place it in the drying rack.” Why frame 47? Other than the fact that prime numbers are cool, nothing, the rest of the visualizations would have worked with any other observation and prompt.</p></div>
+
+<div class="block-wrapper"><p>What does the robot see at frame 47?</p></div>
+
+<div class="obs-video" data-video-src="assets/observation_context/episode_00_frame_0047_context.mp4">
+    <div class="viz-player">
+        <video playsinline preload="metadata"></video>
+        <div class="viz-empty" hidden>Media unavailable</div>
+        <div class="viz-player-controls">
+            <button class="viz-play" type="button" aria-label="Play"></button>
+            <div class="viz-time"><span data-role="current">0:00</span> / <span data-role="duration">0:00</span></div>
+            <input class="viz-progress" type="range" min="0" max="100" step="0.1" value="0">
+            <button class="viz-fullscreen" type="button">Full</button>
+        </div>
+    </div>
+</div>
+
+<div class="block-wrapper"><p>As you may have noticed, frame 47 was highlighted in red, showing the robot arm approaching the pan to pick it up, which was the first part of our task.</p></div>
+
+<div class="block-wrapper"><p>I ran $\pi_{0.5}$’s action expert for 10 denoising steps, starting from 50 different random noise initializations. Each seed is a $50 \times 32$ noise tensor sampled from $\mathcal{N}(0, I)$, all conditioned on the same observation (frame‑47’s three camera views + proprioceptive state) and the same prompt.</p></div>
+
+<div class="block-wrapper"><p>At each denoising timestep $\tau$, I collected the intermediate action chunk $a_{t:t+H}^\tau$ for all 50 seeds. This gives us the full denoising trajectory, showing how each random initialization evolves through the learned vector field to a coherent 50-step action sequence.</p></div>
+
+<div class="code-wrapper">
+    <div class="code-header">
+        <div class="window-controls">
+            <div class="dot red"></div>
+            <div class="dot yellow"></div>
+            <div class="dot green"></div>
+        </div>
+        <span class="filename">snippet</span>
+        <div style="width: 40px;"></div>
+    </div>
+    <div class="code-content">
+<pre><code>trajectory: (11, 50, 50, 32) 
+timesteps: (11,) 
+initial_noise: (50, 50, 32) 
+final_actions: (50, 50, 32) 
+observation_state: (14,)</code></pre>
+    </div>
+</div>
+
+<div class="block-wrapper"><p>Breaking down the shape of the trajectory:</p></div>
+
+<div class="block-wrapper"><ul><li>11: Total timesteps (initial noise + 10 denoising steps)</li><li>50: Number of noise seeds (to see how different initializations converge)</li><li>50: Number of actions in each action chunk</li><li>32: Action dimension (Mobile ALOHA uses 14D actions, but $\pi_{0.5}$ pads to 32 for robust cross-embodiment training)</li></ul></div>
+
+<h4>Visualization 1: Do actions within a chunk form a coherent structure?</h4>
+
+<div class="block-wrapper"><p>The first natural question I had was, since the policy predicts an action chunk of 50 sequential actions, does any structure emerge between these actions as denoising progresses? Since all actions live in 14-dimensional space (after removing padding), we need a way to project them into 2D/3D so we can visualize them. Thankfully, there are multiple techniques available here, including principal component analysis (PCA), t-distributed stochastic neighbour embedding (t-SNE), and uniform manifold approximation and projection (UMAP). For all of the visualizations hereafter, I’ve used principal component analysis (PCA).</p></div>
+
+<div class="block-wrapper"><p>To answer the question, I used a single noise seed and extracted all its actions across all timesteps, i.e., trajectory[:, seed, :, :14], giving us the shape of $(11, 50, 14)$. That’s 50 actions at each of the 11 denoising steps. I then fit PCA once on all $11 \times 50 = 550$ 14D action vectors from this initial noise seed across all denoising steps. Fitting PCA per-timestep would introduce discontinuities, making the frames incomparable. By fitting once across all timesteps, the 2D projection is consistent, allowing us to track how the action chunk evolves. After the projection, we have $(550, 2)$, which is then reshaped back to $(11, 50, 2)$ representing the 50 2D action vectors present in the action chunk at each denoising step.</p></div>
+
+<div class="block-wrapper"><p>Since we’re projecting from 14D space to 2D, it’s more than possible that the structure we see arising is misleading, due to which I’ve plotted the normalized L2 distance and cosine similarity across consecutive actions in the chunk, providing us with measurable geometric properties even in higher dimensions.</p></div>
+
+<div class="viz-block" data-viz-id="visualization_one" data-default-option="seed_00" data-default-view="3d" data-default-format="gif" data-default-metrics="off">
+    <div class="viz-toolbar">
+        <div class="viz-field">
+            <div class="viz-label" data-role="selector-label">Seed</div>
+            <div class="viz-select">
+                <select>
+                <option value="seed_00" selected>Seed 00</option>
+                <option value="seed_13">Seed 13</option>
+                <option value="seed_24">Seed 24</option>
+                <option value="seed_37">Seed 37</option>
+                <option value="seed_49">Seed 49</option>
+                </select>
+            </div>
+        </div>
+        <div class="viz-field">
+            <div class="viz-label">View</div>
+            <div class="viz-toggle-group" data-toggle="view">
+                <button class="viz-toggle" type="button" data-value="2d">2D</button>
+                <button class="viz-toggle" type="button" data-value="3d">3D</button>
+            </div>
+        </div>
+        <div class="viz-field">
+            <div class="viz-label">Format</div>
+            <div class="viz-toggle-group" data-toggle="format">
+                <button class="viz-toggle" type="button" data-value="gif">GIF</button>
+                <button class="viz-toggle" type="button" data-value="mp4">MP4</button>
+            </div>
+        </div>
+        <div class="viz-field" data-field="metrics">
+            <div class="viz-label">Metrics</div>
+            <div class="viz-toggle-group" data-toggle="metrics">
+                <button class="viz-toggle" type="button" data-value="on">On</button>
+                <button class="viz-toggle" type="button" data-value="off">Off</button>
+            </div>
+        </div>
+    </div>
+    <div class="viz-stage">
+        <div class="viz-player">
+            <video playsinline preload="metadata"></video>
+            <img alt="">
+            <div class="viz-empty" hidden>Media unavailable</div>
+            <div class="viz-player-controls">
+                <button class="viz-play" type="button" aria-label="Play"></button>
+                <div class="viz-time"><span data-role="current">0:00</span> / <span data-role="duration">0:00</span></div>
+                <input class="viz-progress" type="range" min="0" max="100" step="0.1" value="0">
+                <button class="viz-fullscreen" type="button">Full</button>
+            </div>
+        </div>
+        <div class="viz-metrics"><div class="viz-metrics-plot" aria-hidden="true"></div><img alt="Metrics"></div>
+    </div>
+    <div class="viz-caption">Color shows horizon index (purple to yellow), lines link consecutive actions</div>
+</div>
+
+<div class="block-wrapper"><p>As you can see, regardless of the initial noise seed, as denoising progresses, we observe structure emerging within the actions in the action chunk. They go from completely unrelated to having a coherent, smooth structure. The normalised L2 distance drops sharply, meaning consecutive actions become much closer (the chunk becomes locally smoother), while the cosine similarity approaches 1, indicating that consecutive actions have become more directionally aligned in 14D space.</p></div>
+
+<div class="block-wrapper"><p>Together, these signals represent the emergence of smooth, locally consistent motion, in which actions flow naturally from one step to the next, forming a coherent trajectory for the robot to execute.</p></div>
+
+<h4>Visualization 2: Do particular actions converge despite noise seeds?</h4>
+
+<div class="block-wrapper"><p>Next, I wanted to visualise how a single action at a fixed position in the chunk evolves during denoising and whether different noise seeds converge to similar final actions. For example, does the action at position $h=0$ (the first action in the chunk) always denoise to the same region of action space, regardless of what random noise it started from? To examine this, I extracted the action at a fixed horizon index $h$ across all seeds and denoising steps, i.e., trajectory[:, :, h, :14] → shape $(11, 50, 14)$. At each denoising step $k$, we have 50 different versions of “the h-th action”, one per noise seed. I then fit PCA across all 550 points ($50$ seeds × $11$ timesteps) in 14D space.</p></div>
+
+<div class="block-wrapper"><p>The first visualisation fit PCA using the same seed, all horizon indexes, and all timesteps. The second visualisation shows PCA across all seeds, using the same horizon index, and all timesteps.</p></div>
+
+<div class="block-wrapper"><p>Since PCA could lead to misinterpretation of structure, I also calculated the mean pairwise distance across the 50 actions at each denoising step as a quantitative measure of dispersion.</p></div>
+
+<div class="viz-block" data-viz-id="visualization_two" data-default-option="horizon_00" data-default-view="3d" data-default-format="gif" data-default-metrics="off">
+    <div class="viz-toolbar">
+        <div class="viz-field">
+            <div class="viz-label" data-role="selector-label">Horizon</div>
+            <div class="viz-select">
+                <select>
+                <option value="horizon_00" selected>Horizon 0</option>
+                <option value="horizon_10">Horizon 10</option>
+                <option value="horizon_15">Horizon 15</option>
+                <option value="horizon_24">Horizon 24</option>
+                <option value="horizon_36">Horizon 36</option>
+                <option value="horizon_40">Horizon 40</option>
+                <option value="horizon_45">Horizon 45</option>
+                <option value="horizon_49">Horizon 49</option>
+                </select>
+            </div>
+        </div>
+        <div class="viz-field">
+            <div class="viz-label">View</div>
+            <div class="viz-toggle-group" data-toggle="view">
+                <button class="viz-toggle" type="button" data-value="2d">2D</button>
+                <button class="viz-toggle" type="button" data-value="3d">3D</button>
+            </div>
+        </div>
+        <div class="viz-field">
+            <div class="viz-label">Format</div>
+            <div class="viz-toggle-group" data-toggle="format">
+                <button class="viz-toggle" type="button" data-value="gif">GIF</button>
+                <button class="viz-toggle" type="button" data-value="mp4">MP4</button>
+            </div>
+        </div>
+        <div class="viz-field" data-field="metrics">
+            <div class="viz-label">Metrics</div>
+            <div class="viz-toggle-group" data-toggle="metrics">
+                <button class="viz-toggle" type="button" data-value="on">On</button>
+                <button class="viz-toggle" type="button" data-value="off">Off</button>
+            </div>
+        </div>
+    </div>
+    <div class="viz-stage">
+        <div class="viz-player">
+            <video playsinline preload="metadata"></video>
+            <img alt="">
+            <div class="viz-empty" hidden>Media unavailable</div>
+            <div class="viz-player-controls">
+                <button class="viz-play" type="button" aria-label="Play"></button>
+                <div class="viz-time"><span data-role="current">0:00</span> / <span data-role="duration">0:00</span></div>
+                <input class="viz-progress" type="range" min="0" max="100" step="0.1" value="0">
+                <button class="viz-fullscreen" type="button">Full</button>
+            </div>
+        </div>
+        <div class="viz-metrics"><div class="viz-metrics-plot" aria-hidden="true"></div><img alt="Metrics"></div>
+    </div>
+    <div class="viz-caption">Color shows horizon index (purple to yellow)</div>
+</div>
+
+<div class="block-wrapper"><p>The results reveal a striking pattern of temporal certainty decay. For horizon index 0, which represents the immediate next action, the 50 seeds start scattered across the action space but then rapidly collapse into a tight singular cluster, with mean pairwise distance decreasing from 5.4 to 0.27. However, for horizon indices 10, 24, 40, and 49, while the seeds still converge into clusters, the final dispersion remains substantially higher. Most remarkably, plotting the final-step dispersion against horizon index reveals a smooth, monotonic progression. Actions at h=0 converge to within 0.27, while actions at h=49 remain dispersed at 1.77, over six times more variable.</p></div>
+
+<div class="block-wrapper">
+    <figure class="media-block plotly-block">
+        <div class="viz-metrics-plot plotly-summary" data-plot-id="visualization_two_summary"></div>
+        <figcaption>Final dispersion varying with horizon index</figcaption>
+    </figure>
+</div>
+
+<div class="block-wrapper"><p>This gradient of uncertainty isn’t necessarily a failure of the model but rather reflects learned temporal certainty. The flow matching process has internalized that immediate actions are nearly deterministic given the current observation, while future actions remain uncertain, since predicting observations dozens of timesteps ahead is extremely difficult. The model essentially reasons: “I know exactly what to do right now based on what I see, but the correct action 49 steps from now depends on future states I haven’t observed yet.” This empirical finding supports the design choices in the VLA literature, where receding-horizon control is standard practice, and models predict action sequences but execute only the first few actions before replanning with fresh observations.</p></div>
+
+<h4>Visualization 3: What does the vector field look like?</h4>
+
+<div class="block-wrapper"><p>The previous two visualizations were about the action chunks, now I want to visualize the vector field, the flow which makes denoising happen in the first place.</p></div>
+
+<div class="block-wrapper"><p>First, I fit a PCA across all positions, timesteps, seeds, and action horizons. This means taking the trajectory of shape $(11, 50, 50, 14)$ and flattening it to $(27500, 14)$, where $27{,}500 = 11 \times 50 \times 50$. Fitting PCA to this gives a fixed projection that transforms the 14D points to 2D, i.e., $(27500, 2)$, which I then reshape back to $(11, 2500, 2)$, giving me 2500 2D positions at each of the 11 timesteps. Next, I computed velocities as finite differences between consecutive denoising steps by</p></div>
+
+<div class="block-wrapper"><p>$$ v_k = \frac{x_{k+1} - x_k}{\tau_{k+1} - \tau_k} $$</p></div>
+
+<div class="block-wrapper"><p>which has a shape (10, 50, 50, 14) since there are only 10 transitions between 11 timesteps. I projected these velocities using the same PCA components, giving velocity vectors of shape (10, 2500, 2). Now, at each timestep k, I have both the 2D positions and their corresponding 2D velocity vectors.</p></div>
+
+<div class="viz-block" data-viz-id="visualization_three" data-default-option="subsample_0.05_seed0" data-default-view="3d" data-default-format="gif" data-default-metrics="off">
+    <div class="viz-toolbar">
+        <div class="viz-field">
+            <div class="viz-label" data-role="selector-label">Subsample</div>
+            <div class="viz-select">
+                <select>
+                <option value="subsample_0.05_seed0" selected>Subsample 5% (Seed 0)</option>
+                <option value="subsample_0.15_seed0">Subsample 15% (Seed 0)</option>
+                <option value="subsample_0.25_seed0">Subsample 25% (Seed 0)</option>
+                <option value="subsample_0.50_seed0">Subsample 50% (Seed 0)</option>
+                <option value="subsample_0.75_seed0">Subsample 75% (Seed 0)</option>
+                <option value="subsample_1.00_seed0">Subsample 100% (Seed 0)</option>
+                </select>
+            </div>
+        </div>
+        <div class="viz-field">
+            <div class="viz-label">View</div>
+            <div class="viz-toggle-group" data-toggle="view">
+                <button class="viz-toggle" type="button" data-value="2d">2D</button>
+                <button class="viz-toggle" type="button" data-value="3d">3D</button>
+            </div>
+        </div>
+        <div class="viz-field">
+            <div class="viz-label">Format</div>
+            <div class="viz-toggle-group" data-toggle="format">
+                <button class="viz-toggle" type="button" data-value="gif">GIF</button>
+                <button class="viz-toggle" type="button" data-value="mp4">MP4</button>
+            </div>
+        </div>
+        <div class="viz-field" data-field="metrics">
+            <div class="viz-label">Metrics</div>
+            <div class="viz-toggle-group" data-toggle="metrics">
+                <button class="viz-toggle" type="button" data-value="on">On</button>
+                <button class="viz-toggle" type="button" data-value="off">Off</button>
+            </div>
+        </div>
+    </div>
+    <div class="viz-stage">
+        <div class="viz-player">
+            <video playsinline preload="metadata"></video>
+            <img alt="">
+            <div class="viz-empty" hidden>Media unavailable</div>
+            <div class="viz-player-controls">
+                <button class="viz-play" type="button" aria-label="Play"></button>
+                <div class="viz-time"><span data-role="current">0:00</span> / <span data-role="duration">0:00</span></div>
+                <input class="viz-progress" type="range" min="0" max="100" step="0.1" value="0">
+                <button class="viz-fullscreen" type="button">Full</button>
+            </div>
+        </div>
+        <div class="viz-metrics"><div class="viz-metrics-plot" aria-hidden="true"></div><img alt="Metrics"></div>
+    </div>
+    <div class="viz-caption">Each frame represents the vector field at all shown positions, at that specific timestep</div>
+</div>
+
+<div class="block-wrapper"><p>Since visualising 2500 arrows per frame can be extremely cluttering, there are different subsample visualisations present that show a fixed percentage of the trajectories. (This could honestly just be a footnote)</p></div>
+
+<div class="block-wrapper"><p>This does not visualize the ground-truth vector field across the entire action space. Rather, for a fixed observation $o_t$, the model defines a time-dependent conditioned vector field $v_{\theta}(x, t \mid o_t)$. By sampling many noise seeds and recording $(x_t, v_t)$ along the denoising trajectories, we get many on-manifold samples of this field. One seed gives vectors only along one trajectory, multiple seeds give broader coverage of the region of action space that the denoising process actually visits for that observation. This improves our estimate/visualization of the conditioned field in regions where data exist (especially in a chosen 2D projection), but it does not recover the entire global field of the model across all observations or the entire action space. Even with infinite samples from a Gaussian, you don’t get a uniform “grid” over $\mathbb{R}^{14}$. You get dense coverage in probability under that Gaussian’s measure. Infinite samples can improve your approximation where you have density, but they don’t magically give you “the full field everywhere.”</p></div>
+
+<h2>References</h2>
+
+<div class="block-wrapper"><p>Lipman, Y., Chen, R. T. Q., Ben-Hamu, H., Nickel, M., &amp; Le, M. (2023). Flow matching for generative modeling. arXiv. <a href="https://arxiv.org/abs/2210.02747">https://arxiv.org/abs/2210.02747</a></p></div>
+
+<div class="block-wrapper"><p>Black, K., et al. (2025). $\pi_{0.5}$: a Vision-Language-Action Model with Open-World Generalization. arXiv. <a href="https://arxiv.org/abs/2504.16054">https://arxiv.org/abs/2504.16054</a></p></div>
+
+<div class="block-wrapper"><p><a href="https://nrehiew.github.io/blog/flow_matching/">Flow Matching in 5 minutes</a> by wh</p></div>
+
+<div class="block-wrapper"><p><a href="https://www.youtube.com/watch?v=7cMzfkWFWhI&amp;t=141s">Flow Matching | Explanation + PyTorch Implementation</a> by Outlier</p></div>
+
+<div class="block-wrapper"><p><a href="https://isaacbs.com/blog/few-step">Fast (Few-Single Step) Flow Matching</a> by Issac Bautista Silva</p></div>
+
+<div class="block-wrapper"><p><a href="https://d2jud02ci9yv69.cloudfront.net/2025-04-28-flow-with-what-you-know-38/blog/flow-with-what-you-know/">&quot;Flow With What You Know&quot;</a> by Scott H. Hawley, ICLR Blogposts, 2025</p></div>
+    </article>
+
+    <script>
+        // --- 0. LAYOUT TOGGLE ---
+        document.body.classList.remove("layout-sidenotes");
+
+        const fitDisplayMath = () => {
+            const isNarrow = window.matchMedia && window.matchMedia("(max-width: 900px)").matches;
+            const containers = document.querySelectorAll('mjx-container[display="true"]');
+            containers.forEach((container) => {
+                if (!isNarrow) {
+                    container.style.transform = "";
+                    container.style.transformOrigin = "";
+                    container.style.height = "";
+                    return;
+                }
+                const inner = container.querySelector("mjx-math") || container.firstElementChild;
+                if (!inner) {
+                    return;
+                }
+                const containerWidth = container.clientWidth;
+                const contentWidth = inner.scrollWidth;
+                if (!containerWidth || !contentWidth) {
+                    return;
+                }
+                if (contentWidth > containerWidth) {
+                    const scale = containerWidth / contentWidth;
+                    container.style.transform = `scale(${scale})`;
+                    container.style.transformOrigin = "left top";
+                    container.style.height = `${inner.scrollHeight * scale}px`;
+                } else {
+                    container.style.transform = "";
+                    container.style.transformOrigin = "";
+                    container.style.height = "";
+                }
+            });
+        };
+
+        const scheduleFitMath = () => {
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise().then(fitDisplayMath);
+            } else {
+                fitDisplayMath();
+            }
+        };
+
+        window.addEventListener("load", () => {
+            scheduleFitMath();
+            window.addEventListener("resize", () => requestAnimationFrame(fitDisplayMath));
+        });
+
+        // --- 1. SIDENOTE INTERACTIONS ---
+        // Bi-directional highlighting for Footnotes
+        const refs = document.querySelectorAll('.ref-link');
+        const notes = document.querySelectorAll('.sidenote');
+
+        refs.forEach(ref => {
+            const targetId = ref.getAttribute('data-ref');
+            const targetNote = document.getElementById(targetId);
+
+            if (!targetNote) {
+                return;
+            }
+
+            ref.addEventListener('mouseenter', () => {
+                targetNote.classList.add('active');
+            });
+            ref.addEventListener('mouseleave', () => {
+                targetNote.classList.remove('active');
+            });
+        });
+
+        notes.forEach(note => {
+            const noteId = note.getAttribute('id');
+            const targetRef = document.querySelector(`.ref-link[data-ref="${noteId}"]`);
+
+            if(targetRef) {
+                note.addEventListener('mouseenter', () => {
+                    targetRef.classList.add('active');
+                    note.classList.add('active');
+                });
+                note.addEventListener('mouseleave', () => {
+                    targetRef.classList.remove('active');
+                    note.classList.remove('active');
+                });
+            }
+        });
+
+        // --- 2. THE HUD CURSOR (Reading Marker) ---
+        // Tracks which block you are reading and slides the sidebar indicator
+        const marker = document.getElementById('marker');
+        const blocks = document.querySelectorAll('.block-wrapper, .code-wrapper, h2, h3, h4, h5, h6, .tldr-box');
+
+        const observerOptions = {
+            root: null,
+            rootMargin: '-20% 0px -60% 0px', // Active zone is in the upper-middle of screen
+            threshold: 0
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const rect = entry.target.getBoundingClientRect();
+                    marker.style.height = rect.height + 'px';
+                    marker.style.top = rect.top + 'px';
+                    marker.style.opacity = '1';
+                }
+            });
+        }, observerOptions);
+
+        blocks.forEach(block => observer.observe(block));
+
+        // --- 3. VISUALIZATION CONTROLS ---
+        const vizData = window.BLOG_VIZ_DATA || {};
+        const vizConfigs = vizData.visualizations || {};
+
+        const formatTime = (seconds) => {
+            if (!Number.isFinite(seconds)) {
+                return "0:00";
+            }
+            const minutes = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${minutes}:${secs.toString().padStart(2, "0")}`;
+        };
+
+        const resolveMedia = (option, desiredView, desiredFormat, priority) => {
+            const views = ["2d", "3d"];
+            const formats = ["mp4", "gif"];
+            const viewAvailable = (view) => option.paths && option.paths[view] && (option.paths[view].mp4 || option.paths[view].gif);
+            const formatAvailable = (view, format) => option.paths && option.paths[view] && option.paths[view][format];
+
+            let view = desiredView;
+            let format = desiredFormat;
+
+            if (!viewAvailable(view)) {
+                const fallbackView = views.find(viewAvailable);
+                view = fallbackView || view;
+            }
+
+            if (!formatAvailable(view, format)) {
+                if (priority === "format") {
+                    const altView = views.find((candidate) => formatAvailable(candidate, format));
+                    if (altView) {
+                        view = altView;
+                    } else {
+                        const altFormat = formats.find((candidate) => formatAvailable(view, candidate));
+                        if (altFormat) {
+                            format = altFormat;
+                        }
+                    }
+                } else {
+                    const altFormat = formats.find((candidate) => formatAvailable(view, candidate));
+                    if (altFormat) {
+                        format = altFormat;
+                    }
+                }
+            }
+
+            const src = formatAvailable(view, format) ? option.paths[view][format] : null;
+            return { view, format, src };
+        };
+
+        const buildMetricsPlot = (metricsData, layoutOverrides = {}) => {
+            const timesteps = Array.isArray(metricsData.timesteps)
+                ? metricsData.timesteps
+                : null;
+            const xValues = timesteps || metricsData.steps || metricsData.indices || [];
+            const xMin = xValues.length ? Math.min(...xValues) : 0;
+            const xMax = xValues.length ? Math.max(...xValues) : 1;
+            const xRange = [Math.min(0, xMin), Math.max(1, xMax)];
+
+            const baseLayout = {
+                font: { family: "Geist, sans-serif", size: 12, color: "#1C1917" },
+                paper_bgcolor: "#FFFFFF",
+                plot_bgcolor: "#FFFFFF",
+                margin: { l: 70, r: 28, t: 20, b: 56 },
+                showlegend: false
+            };
+            const mergedBase = { ...baseLayout, ...layoutOverrides };
+
+            if (Array.isArray(metricsData.normalized_l2) && Array.isArray(metricsData.cosine_similarity)) {
+                const x = xValues.length ? xValues : metricsData.normalized_l2.map((_, i) => i);
+                const normalizedMax = Math.max(...metricsData.normalized_l2);
+                const normalizedRangeMax = Math.max(1, Math.ceil(normalizedMax * 2) / 2);
+                return {
+                    data: [
+                        {
+                            x,
+                            y: metricsData.normalized_l2,
+                            type: "scatter",
+                            mode: "lines+markers",
+                            line: { color: "#2563EB", width: 2 },
+                            marker: { size: 5 },
+                            hovertemplate: "%{x}, %{y}<extra></extra>",
+                            xaxis: "x",
+                            yaxis: "y"
+                        },
+                        {
+                            x,
+                            y: metricsData.cosine_similarity,
+                            type: "scatter",
+                            mode: "lines+markers",
+                            line: { color: "#F97316", width: 2 },
+                            marker: { size: 5 },
+                            hovertemplate: "%{x}, %{y}<extra></extra>",
+                            xaxis: "x2",
+                            yaxis: "y2"
+                        }
+                    ],
+                    layout: {
+                        ...mergedBase,
+                        grid: { rows: 2, columns: 1, pattern: "independent" },
+                        xaxis: {
+                            showticklabels: false,
+                            gridcolor: "rgba(0,0,0,0.06)",
+                            automargin: true,
+                            range: xRange,
+                            tickmode: "linear",
+                            tick0: 0,
+                            dtick: 0.5
+                        },
+                        yaxis: {
+                            gridcolor: "rgba(0,0,0,0.06)",
+                            automargin: true,
+                            range: [0, normalizedRangeMax],
+                            tickmode: "linear",
+                            tick0: 0,
+                            dtick: 0.5,
+                            title: { text: "Normalized L2", standoff: 14 }
+                        },
+                        xaxis2: {
+                            title: { text: "Denoising step", standoff: 14 },
+                            gridcolor: "rgba(0,0,0,0.06)",
+                            automargin: true,
+                            range: xRange,
+                            tickmode: "linear",
+                            tick0: 0,
+                            dtick: 0.5,
+                            showticklabels: true
+                        },
+                        yaxis2: {
+                            gridcolor: "rgba(0,0,0,0.06)",
+                            automargin: true,
+                            range: [0, 1],
+                            tickmode: "linear",
+                            tick0: 0,
+                            dtick: 0.5,
+                            title: { text: "Cosine similarity", standoff: 14 }
+                        }
+                    }
+                };
+            }
+
+            if (Array.isArray(metricsData.mean_pairwise_distance)) {
+                const x = xValues.length ? xValues : metricsData.mean_pairwise_distance.map((_, i) => i);
+                const mpdMax = Math.max(...metricsData.mean_pairwise_distance);
+                const mpdRangeMax = Math.max(1, Math.ceil(mpdMax * 2) / 2);
+                return {
+                    data: [
+                        {
+                            x,
+                            y: metricsData.mean_pairwise_distance,
+                            type: "scatter",
+                            mode: "lines+markers",
+                            line: { color: "#2563EB", width: 2 },
+                            marker: { size: 5 },
+                            hovertemplate: "%{x}, %{y}<extra></extra>"
+                        }
+                    ],
+                    layout: {
+                        ...mergedBase,
+                        xaxis: {
+                            title: { text: "Denoising step", standoff: 14 },
+                            gridcolor: "rgba(0,0,0,0.06)",
+                            automargin: true,
+                            range: xRange,
+                            tickmode: "linear",
+                            tick0: 0,
+                            dtick: 0.5,
+                            showticklabels: true
+                        },
+                        yaxis: {
+                            title: { text: "Mean pairwise distance (14D)", standoff: 14 },
+                            gridcolor: "rgba(0,0,0,0.06)",
+                            automargin: true,
+                            range: [0, mpdRangeMax],
+                            tickmode: "linear",
+                            tick0: 0,
+                            dtick: 0.5
+                        }
+                    }
+                };
+            }
+
+            if (Array.isArray(metricsData.mean_pairwise_distance_final_step)) {
+                const x = Array.isArray(metricsData.horizon_indices)
+                    ? metricsData.horizon_indices
+                    : metricsData.mean_pairwise_distance_final_step.map((_, i) => i);
+                const xMinFinal = Math.min(...x);
+                const xMaxFinal = Math.max(...x);
+                const mpdFinalMax = Math.max(...metricsData.mean_pairwise_distance_final_step);
+                const mpdFinalRangeMax = Math.max(1, Math.ceil(mpdFinalMax * 2) / 2);
+                return {
+                    data: [
+                        {
+                            x,
+                            y: metricsData.mean_pairwise_distance_final_step,
+                            type: "scatter",
+                            mode: "lines+markers",
+                            line: { color: "#2563EB", width: 2 },
+                            marker: { size: 5 },
+                            hovertemplate: "%{x}, %{y}<extra></extra>"
+                        }
+                    ],
+                    layout: {
+                        ...mergedBase,
+                        xaxis: {
+                            title: { text: "Horizon index (h)", standoff: 14 },
+                            gridcolor: "rgba(0,0,0,0.06)",
+                            automargin: true,
+                            range: [Math.min(0, xMinFinal), Math.max(1, xMaxFinal)],
+                            tickmode: "linear",
+                            tick0: 0,
+                            dtick: 10,
+                            showticklabels: true
+                        },
+                        yaxis: {
+                            title: { text: "Mean pairwise distance (final step)", standoff: 14 },
+                            gridcolor: "rgba(0,0,0,0.06)",
+                            automargin: true,
+                            range: [0, mpdFinalRangeMax],
+                            tickmode: "linear",
+                            tick0: 0,
+                            dtick: 0.5
+                        }
+                    }
+                };
+            }
+
+            return null;
+        };
+
+        const renderMetricsPlot = (metricsPlot, metricsData) => {
+            if (!window.Plotly || !metricsPlot || !metricsData) {
+                return;
+            }
+            const isNarrow = window.matchMedia && window.matchMedia("(max-width: 700px)").matches;
+            const isSummary = metricsPlot.classList.contains("plotly-summary");
+            const layoutOverrides = isNarrow
+                ? {
+                    margin: isSummary
+                        ? { l: 64, r: 18, t: 18, b: 88 }
+                        : { l: 60, r: 18, t: 18, b: 72 },
+                    font: { family: "Geist, sans-serif", size: 10, color: "#1C1917" }
+                }
+                : {};
+            const payload = buildMetricsPlot(metricsData, layoutOverrides);
+            if (!payload) {
+                return;
+            }
+            if (isNarrow) {
+                ["xaxis", "xaxis2", "yaxis", "yaxis2"].forEach((axisKey) => {
+                    const axis = payload.layout[axisKey];
+                    if (!axis) {
+                        return;
+                    }
+                    if (axis.title && axis.title.standoff) {
+                        axis.title.standoff = 8;
+                    }
+                    axis.tickfont = { size: 10 };
+                });
+            }
+            const bounds = metricsPlot.getBoundingClientRect();
+            const layout = {
+                ...payload.layout,
+                width: Math.max(1, Math.floor(bounds.width)),
+                height: Math.max(1, Math.floor(bounds.height))
+            };
+            Plotly.react(metricsPlot, payload.data, layout, { displayModeBar: false, responsive: true });
+        };
+
+        const setToggleState = (buttons, value) => {
+            buttons.forEach((btn) => {
+                const isActive = btn.dataset.value === value;
+                btn.classList.toggle("is-active", isActive);
+                btn.setAttribute("aria-pressed", isActive ? "true" : "false");
+            });
+        };
+
+        const setToggleAvailability = (buttons, enabledSet) => {
+            buttons.forEach((btn) => {
+                const isEnabled = enabledSet.has(btn.dataset.value);
+                btn.classList.toggle("is-disabled", !isEnabled);
+                btn.disabled = !isEnabled;
+            });
+        };
+
+        const setupVideoControls = (block) => {
+            const player = block.querySelector(".viz-player");
+            const video = player.querySelector("video");
+            const playBtn = player.querySelector(".viz-play");
+            const progress = player.querySelector(".viz-progress");
+            const currentEl = player.querySelector('[data-role="current"]');
+            const durationEl = player.querySelector('[data-role="duration"]');
+            const fullBtn = player.querySelector(".viz-fullscreen");
+
+            const updateProgress = () => {
+                if (!Number.isFinite(video.duration) || video.duration === 0) {
+                    progress.value = 0;
+                    currentEl.textContent = "0:00";
+                    durationEl.textContent = "0:00";
+                    progress.style.setProperty("--progress", "0%");
+                    return;
+                }
+                const percent = (video.currentTime / video.duration) * 100;
+                progress.value = percent;
+                progress.style.setProperty("--progress", `${percent}%`);
+                currentEl.textContent = formatTime(video.currentTime);
+                durationEl.textContent = formatTime(video.duration);
+            };
+
+            playBtn.addEventListener("click", () => {
+                if (video.paused) {
+                    video.play();
+                } else {
+                    video.pause();
+                }
+            });
+
+            video.addEventListener("play", () => playBtn.classList.add("is-playing"));
+            video.addEventListener("pause", () => playBtn.classList.remove("is-playing"));
+            video.addEventListener("ended", () => playBtn.classList.remove("is-playing"));
+            video.addEventListener("timeupdate", updateProgress);
+            video.addEventListener("loadedmetadata", updateProgress);
+
+            progress.addEventListener("input", () => {
+                if (!Number.isFinite(video.duration)) {
+                    return;
+                }
+                const percent = Number(progress.value);
+                progress.style.setProperty("--progress", `${percent}%`);
+                video.currentTime = (percent / 100) * video.duration;
+            });
+
+            fullBtn.addEventListener("click", () => {
+                if (player.requestFullscreen) {
+                    player.requestFullscreen();
+                }
+            });
+
+            return { video, player, updateProgress };
+        };
+
+        const initVizBlock = (block) => {
+            const vizId = block.dataset.vizId;
+            const config = vizConfigs[vizId];
+            if (!config || !config.options || !config.options.length) {
+                block.innerHTML = '<div class="viz-empty">Visualization data missing</div>';
+                return;
+            }
+
+            const selectorLabel = block.querySelector('[data-role="selector-label"]');
+            if (selectorLabel) {
+                selectorLabel.textContent = config.selector_label || "Option";
+            }
+
+            const select = block.querySelector("select");
+            const viewButtons = Array.from(block.querySelectorAll('[data-toggle="view"] .viz-toggle'));
+            const formatButtons = Array.from(block.querySelectorAll('[data-toggle="format"] .viz-toggle'));
+            const metricButtons = Array.from(block.querySelectorAll('[data-toggle="metrics"] .viz-toggle'));
+            const metricsField = block.querySelector('[data-field="metrics"]');
+
+            const player = block.querySelector(".viz-player");
+            const gif = player.querySelector("img");
+            const emptyState = player.querySelector(".viz-empty");
+            const controlBar = player.querySelector(".viz-player-controls");
+            const metricsWrap = block.querySelector(".viz-metrics");
+            const metricsImg = metricsWrap.querySelector("img");
+            const metricsPlot = metricsWrap.querySelector(".viz-metrics-plot");
+            const stage = block.querySelector(".viz-stage");
+            const toolbar = block.querySelector(".viz-toolbar");
+
+            const videoState = setupVideoControls(block);
+            const syncMetricsHeight = () => {
+                if (!metricsWrap || metricsWrap.classList.contains("is-hidden")) {
+                    return;
+                }
+                const isNarrow = window.matchMedia && window.matchMedia("(max-width: 900px)").matches;
+                if (isNarrow) {
+                    metricsWrap.style.height = "";
+                    if (metricsWrap.classList.contains("is-plot") && window.Plotly && metricsPlot) {
+                        Plotly.Plots.resize(metricsPlot);
+                    }
+                    return;
+                }
+                const playerHeight = player.getBoundingClientRect().height;
+                if (playerHeight) {
+                    metricsWrap.style.height = `${playerHeight}px`;
+                }
+                if (metricsWrap.classList.contains("is-plot") && window.Plotly && metricsPlot) {
+                    Plotly.Plots.resize(metricsPlot);
+                }
+            };
+
+            const state = {
+                optionId: block.dataset.defaultOption || config.options[0].id,
+                view: block.dataset.defaultView || "2d",
+                format: block.dataset.defaultFormat || "mp4",
+                metrics: block.dataset.defaultMetrics !== "off"
+            };
+
+            if (select) {
+                select.value = state.optionId;
+            }
+
+            const update = (priority) => {
+                const option = config.options.find((item) => item.id === state.optionId) || config.options[0];
+                if (!option) {
+                    return;
+                }
+
+                const availableViews = new Set();
+                ["2d", "3d"].forEach((view) => {
+                    if (option.paths && option.paths[view] && (option.paths[view].mp4 || option.paths[view].gif)) {
+                        availableViews.add(view);
+                    }
+                });
+
+                const resolved = resolveMedia(option, state.view, state.format, priority);
+                state.view = resolved.view;
+                state.format = resolved.format;
+
+                setToggleAvailability(viewButtons, availableViews);
+                setToggleState(viewButtons, state.view);
+
+                const availableFormats = new Set();
+                if (option.paths) {
+                    ["2d", "3d"].forEach((view) => {
+                        if (!option.paths[view]) {
+                            return;
+                        }
+                        if (option.paths[view].mp4) {
+                            availableFormats.add("mp4");
+                        }
+                        if (option.paths[view].gif) {
+                            availableFormats.add("gif");
+                        }
+                    });
+                }
+
+                setToggleAvailability(formatButtons, availableFormats);
+                setToggleState(formatButtons, state.format);
+
+                const hasMetrics = Boolean(
+                    option.paths && (option.paths.metrics || option.paths.metrics_data)
+                );
+                if (metricsField) {
+                    metricsField.classList.toggle("is-hidden", !hasMetrics);
+                }
+                metricsWrap.classList.toggle("is-absent", !hasMetrics);
+                if (toolbar) {
+                    toolbar.classList.toggle("no-metrics", !hasMetrics);
+                }
+                setToggleAvailability(metricButtons, new Set(hasMetrics ? ["on", "off"] : []));
+                if (!hasMetrics) {
+                    state.metrics = false;
+                }
+                setToggleState(metricButtons, state.metrics ? "on" : "off");
+
+                if (resolved.src) {
+                    emptyState.hidden = true;
+                    if (state.format === "gif") {
+                        player.classList.add("is-gif");
+                        player.classList.remove("is-video");
+                        gif.src = resolved.src;
+                        videoState.video.pause();
+                        videoState.video.removeAttribute("src");
+                        videoState.video.load();
+                        controlBar.style.display = "none";
+                    } else {
+                        player.classList.add("is-video");
+                        player.classList.remove("is-gif");
+                        videoState.video.src = resolved.src;
+                        videoState.video.load();
+                        gif.removeAttribute("src");
+                        controlBar.style.display = "flex";
+                    }
+                } else {
+                    player.classList.remove("is-video", "is-gif");
+                    emptyState.hidden = false;
+                    gif.removeAttribute("src");
+                    videoState.video.pause();
+                    videoState.video.removeAttribute("src");
+                    videoState.video.load();
+                    controlBar.style.display = "none";
+                }
+
+                stage.classList.toggle("has-metrics", hasMetrics && state.metrics);
+                block.classList.toggle("has-metrics", hasMetrics && state.metrics);
+                if (hasMetrics) {
+                    const metricsData = option.paths.metrics_data;
+                    const metricsImage = option.paths.metrics;
+                    const usePlot = Boolean(metricsData && window.Plotly && metricsPlot);
+
+                    metricsWrap.classList.toggle("is-hidden", !state.metrics);
+                    if (!state.metrics) {
+                        metricsWrap.style.height = "";
+                    }
+
+                    if (state.metrics) {
+                        if (usePlot) {
+                            metricsWrap.classList.add("is-plot");
+                            metricsWrap.classList.remove("is-image");
+                            metricsImg.removeAttribute("src");
+                            renderMetricsPlot(metricsPlot, metricsData);
+                        } else if (metricsImage) {
+                            metricsWrap.classList.add("is-image");
+                            metricsWrap.classList.remove("is-plot");
+                            metricsImg.src = metricsImage;
+                        } else {
+                            metricsWrap.classList.remove("is-plot", "is-image");
+                        }
+                    }
+                } else {
+                    metricsWrap.classList.add("is-hidden");
+                    metricsImg.removeAttribute("src");
+                    metricsWrap.style.height = "";
+                }
+            };
+
+            select.addEventListener("change", (event) => {
+                state.optionId = event.target.value;
+                update("option");
+            });
+
+            viewButtons.forEach((btn) => {
+                btn.addEventListener("click", () => {
+                    if (btn.disabled) {
+                        return;
+                    }
+                    state.view = btn.dataset.value;
+                    update("view");
+                });
+            });
+
+            formatButtons.forEach((btn) => {
+                btn.addEventListener("click", () => {
+                    if (btn.disabled) {
+                        return;
+                    }
+                    state.format = btn.dataset.value;
+                    update("format");
+                });
+            });
+
+            metricButtons.forEach((btn) => {
+                btn.addEventListener("click", () => {
+                    if (btn.disabled) {
+                        return;
+                    }
+                    state.metrics = btn.dataset.value === "on";
+                    update("metrics");
+                    syncMetricsHeight();
+                });
+            });
+
+            update("option");
+            syncMetricsHeight();
+
+            metricsImg.addEventListener("load", syncMetricsHeight);
+            gif.addEventListener("load", syncMetricsHeight);
+            videoState.video.addEventListener("loadedmetadata", syncMetricsHeight);
+            window.addEventListener("resize", () => requestAnimationFrame(syncMetricsHeight));
+        };
+
+        document.querySelectorAll(".viz-block").forEach(initVizBlock);
+
+        const initSummaryPlot = (plotEl) => {
+            const plotId = plotEl.dataset.plotId;
+            const metricsData = (vizData.images && vizData.images[plotId])
+                ? vizData.images[plotId].metrics_data
+                : null;
+            if (!metricsData) {
+                return;
+            }
+            renderMetricsPlot(plotEl, metricsData);
+            window.addEventListener("resize", () => requestAnimationFrame(() => {
+                if (window.Plotly) {
+                    Plotly.Plots.resize(plotEl);
+                }
+            }));
+        };
+
+        document.querySelectorAll(".plotly-summary").forEach(initSummaryPlot);
+
+        const initObsVideo = (block) => {
+            const player = block.querySelector(".viz-player");
+            const video = player.querySelector("video");
+            const emptyState = player.querySelector(".viz-empty");
+            const controls = player.querySelector(".viz-player-controls");
+            const source = block.dataset.videoSrc;
+            setupVideoControls(block);
+
+            if (source) {
+                player.classList.add("is-video");
+                video.src = source;
+                video.muted = true;
+                video.playsInline = true;
+                video.load();
+                emptyState.hidden = true;
+                controls.style.display = "flex";
+
+                const observer = new IntersectionObserver(
+                    (entries) => {
+                        entries.forEach((entry) => {
+                            if (entry.isIntersecting) {
+                                video.play().catch(() => {});
+                            } else {
+                                video.pause();
+                            }
+                        });
+                    },
+                    { threshold: 0.4 }
+                );
+                observer.observe(block);
+            } else {
+                emptyState.hidden = false;
+                controls.style.display = "none";
+            }
+        };
+
+        document.querySelectorAll(".obs-video").forEach(initObsVideo);
+    </script>
+
+</body>
+</html>
