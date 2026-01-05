@@ -305,6 +305,39 @@
             margin-bottom: 2rem;
         }
 
+        .byline {
+            margin: 1.1rem 0 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+        }
+
+        .byline-name {
+            font-family: var(--font-serif);
+            font-size: 1.05rem;
+            color: var(--text-primary);
+        }
+
+        .byline-meta {
+            font-family: var(--font-sans);
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+        }
+
+        .byline-meta a {
+            color: var(--text-primary);
+            text-decoration: none;
+            border-bottom: 1px solid rgba(0,0,0,0.25);
+        }
+
+        .byline-meta a:hover {
+            border-bottom-color: rgba(0,0,0,0.45);
+        }
+
+        .byline-dot {
+            margin: 0 0.6rem;
+        }
+
         /* --- PREMIUM CODE BLOCK --- */
         .code-wrapper {
             margin: 1.6rem 0;
@@ -953,6 +986,10 @@
     <article class="layout-container">
         <header>
     <h1>Visualizing Flow Matching in Robotics</h1>
+    <div class="byline">
+        <div class="byline-name">Abhinav Jha</div>
+        <div class="byline-meta">Jan 2026<span class="byline-dot">·</span><a href="https://x.com/_AbhinavJ" target="_blank" rel="noopener">X</a><span class="byline-dot">·</span><a href="https://www.linkedin.com/in/abhinav-jha-6a6a90279/" target="_blank" rel="noopener">LinkedIn</a></div>
+    </div>
 </header>
         <div class="block-wrapper"><p>In this post, I walk through flow-matching basics, explain its role in VLAs like $\pi_{0.5}$, then dive into visualizations of how noise becomes coherent actions. I hope I can share some of my appreciation for flow matching with you.</p></div>
 
