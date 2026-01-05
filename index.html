@@ -669,6 +669,23 @@
             display: none;
         }
 
+        .viz-player:fullscreen,
+        .viz-player:-webkit-full-screen {
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .viz-player:fullscreen video,
+        .viz-player:fullscreen img,
+        .viz-player:-webkit-full-screen video,
+        .viz-player:-webkit-full-screen img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
         .viz-player.is-video video {
             display: block;
         }
@@ -1744,7 +1761,9 @@ observation_state: (14,)</code></pre>
             });
 
             fullBtn.addEventListener("click", () => {
-                if (player.requestFullscreen) {
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                } else if (player.requestFullscreen) {
                     player.requestFullscreen();
                 }
             });
