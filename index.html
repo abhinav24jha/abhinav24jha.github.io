@@ -1282,7 +1282,7 @@ observation_state: (14,)</code></pre>
     <div class="viz-caption">Each frame represents the vector field at all shown positions, at that specific timestep</div>
 </div>
 
-<div class="block-wrapper"><p>Since visualising 2500 arrows per frame can be extremely cluttering, there are different subsample visualisations present that show a fixed percentage of the trajectories. (This could honestly just be a footnote)</p></div>
+<div class="block-wrapper"><p>Since visualising 2500 arrows per frame can be extremely cluttering, there are different subsample visualisations present that show a fixed percentage of the trajectories.</p></div>
 
 <div class="block-wrapper"><p>This does not visualize the ground-truth vector field across the entire action space. Rather, for a fixed observation $o_t$, the model defines a time-dependent conditioned vector field $v_{\theta}(x, t \mid o_t)$. By sampling many noise seeds and recording $(x_t, v_t)$ along the denoising trajectories, we get many on-manifold samples of this field. One seed gives vectors only along one trajectory, multiple seeds give broader coverage of the region of action space that the denoising process actually visits for that observation. This improves our estimate/visualization of the conditioned field in regions where data exist (especially in a chosen 2D projection), but it does not recover the entire global field of the model across all observations or the entire action space. Even with infinite samples from a Gaussian, you don’t get a uniform “grid” over $\mathbb{R}^{14}$. You get dense coverage in probability under that Gaussian’s measure. Infinite samples can improve your approximation where you have density, but they don’t magically give you “the full field everywhere.”</p></div>
 
