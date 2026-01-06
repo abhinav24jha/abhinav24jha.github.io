@@ -1503,7 +1503,17 @@ observation_state: (14,)</code></pre>
             const timesteps = Array.isArray(metricsData.timesteps)
                 ? metricsData.timesteps
                 : null;
-            const xValues = timesteps || metricsData.steps || metricsData.indices || [];
+            let xValues = timesteps || metricsData.steps || metricsData.indices || [];
+            if (timesteps && timesteps.length > 1) {
+                const first = timesteps[0];
+                const last = timesteps[timesteps.length - 1];
+                if (first > last) {
+                    const maxT = Math.max(...timesteps);
+                    const minT = Math.min(...timesteps);
+                    const span = maxT - minT || 1;
+                    xValues = timesteps.map((t) => (maxT - t) / span);
+                }
+            }
             const xMin = xValues.length ? Math.min(...xValues) : 0;
             const xMax = xValues.length ? Math.max(...xValues) : 1;
             const xRange = [Math.min(0, xMin), Math.max(1, xMax)];
