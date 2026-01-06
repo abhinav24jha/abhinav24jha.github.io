@@ -1530,6 +1530,8 @@ observation_state: (14,)</code></pre>
             if (Array.isArray(metricsData.normalized_l2) && Array.isArray(metricsData.cosine_similarity)) {
                 const x = xValues.length ? xValues : metricsData.normalized_l2.map((_, i) => i);
                 const normalizedMax = Math.max(...metricsData.normalized_l2);
+                const cosineMin = Math.min(...metricsData.cosine_similarity);
+                const cosineRangeMin = Math.min(0, Math.floor(cosineMin * 10) / 10);
                 const normalizedRangeMax = Math.max(1, Math.ceil(normalizedMax * 2) / 2);
                 return {
                     data: [
@@ -1593,7 +1595,7 @@ observation_state: (14,)</code></pre>
                         yaxis2: {
                             gridcolor: "rgba(0,0,0,0.06)",
                             automargin: true,
-                            range: [0, 1],
+                            range: [cosineRangeMin, 1],
                             tickmode: "linear",
                             tick0: 0,
                             dtick: 0.5,
