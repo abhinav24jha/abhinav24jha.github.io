@@ -1560,13 +1560,16 @@ observation_state: (14,)</code></pre>
                         ...mergedBase,
                         grid: { rows: 2, columns: 1, pattern: "independent" },
                         xaxis: {
-                            showticklabels: false,
+                            showticklabels: true,
                             gridcolor: "rgba(0,0,0,0.06)",
                             automargin: true,
                             range: xRange,
-                            tickmode: "linear",
-                            tick0: 0,
-                            dtick: 0.5
+                            tickmode: "array",
+                            tickvals: [0, 0.5, 1],
+                            ticktext: ["0", "0.5", "1"],
+                            ticks: "outside",
+                            ticklen: 4,
+                            tickwidth: 1
                         },
                         yaxis: {
                             gridcolor: "rgba(0,0,0,0.06)",
